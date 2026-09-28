@@ -1,4 +1,4 @@
-from torch import nn
+from torch import nn, Tensor
 import torch
 
 
@@ -56,7 +56,23 @@ class CausalAttention(nn.Module):
 
 
 class MultiHeadAttention(nn.Module):
+    """Causal multi-head self-attention.
+
+    Splits emb_dim into num_heads x head_dim, runs attention
+    independently per head, then merges. Allows each head to
+    learn a different position-to-position routing.
+
+    Shapes: B=batch, T=tokens, D=emb_dim, H=heads, Dh=head_dim.
+    """
+    mask: torch.Tensor 
+
     def __init__(self, d_in, d_out, context_length, dropout, num_heads, qkv_bias=False):
+        """Init projections, output mix, causal mask.
+
+        d_in: input dim (emb_dim). d_out: output dim (emb_dim).
+        context_length: max T, sizes the causal mask.
+        dropout: dropout on attn weights. num_heads: H, must divide d_out.
+        """
         super().__init__()
         assert d_out % num_heads == 0, "d_out  must be divisible by num_heads"
         self.d_out = d_out
@@ -67,32 +83,40 @@ class MultiHeadAttention(nn.Module):
         self.W_value = nn.Linear(d_in, d_out, bias=qkv_bias)
         self.out_proj = nn.Linear(d_out, d_out)
         self.dropout = nn.Dropout(dropout)
+        # Upper-triangular 1s: mask[j>k]=1 blocks future, [L,L]
         self.register_buffer(
             "mask", torch.triu(torch.ones(context_length, context_length), diagonal=1)
         )
 
-    def forward(self, x):
+    def forward(self, x) -> Tensor:
+        """x: [B,T,D] -> z: [B,T,D], each pos mixes only past."""
         b, num_tokens, d_in = x.shape
-        queries = self.W_query(x)
-        keys = self.W_key(x)
-        values = self.W_value(x)
+        # [B,T,D] each: raw Q/K/V before head split
+        queries: Tensor = self.W_query(x)
+        keys: Tensor = self.W_key(x)
+        values: Tensor = self.W_value(x)
+
+        # Multi head attention
         queries = queries.view(b, num_tokens, self.num_heads, self.head_dim)
         keys = keys.view(b, num_tokens, self.num_heads, self.head_dim)
         values = values.view(b, num_tokens, self.num_heads, self.head_dim)
+
         queries = queries.transpose(1, 2)
         keys = keys.transpose(1, 2)
         values = values.transpose(1, 2)
-
+        # Scores per head: [B,H,T,T], score[i,j]=q_i dot k_j
         attn_scores = queries @ keys.transpose(2, 3)
+        # Slice mask to actual T, fill future with -inf so softmax->0
         mask_bool = self.mask.bool()[:num_tokens, :num_tokens]
         attn_scores.masked_fill_(mask_bool, -torch.inf)
-
-        attn_weights = torch.softmax(attn_scores / keys.shape[-1] ** 0.5, dim=-1)
-        attn_weights = self.dropout(attn_weights)
-
+        attn_weights: Tensor = torch.softmax(attn_scores / keys.shape[-1] ** 0.5, dim=-1)
+        attn_weights: Tensor = self.dropout(attn_weights)
         z = (attn_weights @ values).transpose(1, 2)
-        z = z.contiguous().view(b, num_tokens, self.d_out)
-        z = self.out_proj(z)
+
+        # Glue heads: [B,T,H,Dh] -> [B,T,D]
+        z = z.reshape(b, num_tokens, self.d_out)
+        # Learned blend across heads
+        z: Tensor = self.out_proj(z)
         return z
 
 
@@ -171,14 +195,14 @@ class GPT(nn.Module):
         self.final_norm = LayerNorm(cfg["emb_dim"])
         self.out_head = nn.Linear(cfg["emb_dim"], cfg["vocab_size"], bias=False)
 
-    def forward(self, x):
+    def forward(self, x) -> Tensor:
         batch_size, seq_len = x.shape
-        tok_embeds = self.tok_emb(x)
-        pos_embeds = self.pos_emb(torch.arange(seq_len, device=x.device))
+        tok_embeds: Tensor = self.tok_emb(x)
+        pos_embeds: Tensor= self.pos_emb(torch.arange(seq_len, device=x.device))
 
         x = tok_embeds + pos_embeds
-        x = self.drop_emb(x)
-        x = self.transformer_blocks(x)
-        x = self.final_norm(x)
-        logits = self.out_head(x)
+        x: Tensor = self.drop_emb(x)
+        x: Tensor = self.transformer_blocks(x)
+        x: Tensor = self.final_norm(x)
+        logits: Tensor = self.out_head(x)
         return logits

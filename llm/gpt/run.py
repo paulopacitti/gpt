@@ -8,8 +8,8 @@ def generate_text(model, idx, max_output_tokens, context_size):
             logits = model(idx_cond)
 
         logits = logits[:, -1, :]
-        probas = torch.softmax(logits, dim=-1)
-        idx_next = torch.argmax(probas, dim=-1, keepdim=True)
+        probs = torch.softmax(logits, dim=-1)
+        idx_next = torch.argmax(probs, dim=-1, keepdim=True)
         idx = torch.cat((idx, idx_next), dim=1)
 
     return idx
