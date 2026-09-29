@@ -140,7 +140,7 @@ class LayerNorm(nn.Module):
         self.scale = nn.Parameter(torch.ones(emb_dim))
         self.shift = nn.Parameter(torch.zeros(emb_dim))
 
-    def forward(self, x):
+    def forward(self, x: Tensor) -> Tensor:
         mean = x.mean(dim=-1, keepdim=True)
         var = x.var(dim=-1, keepdim=True, unbiased=False)
         norm = (x - mean) / torch.sqrt(var + self.eps)
@@ -163,8 +163,8 @@ class TransformerBlock(nn.Module):
         self.norm2 = LayerNorm(cfg["emb_dim"])
         self.dropout = nn.Dropout(cfg["drop_rate"])
 
-    def forward(self, x):
-        shortcut = x
+    def forward(self, x: Tensor):
+        shortcut= x
         x = self.norm1(x)
         x = self.attn(x)
         x = self.dropout(x)

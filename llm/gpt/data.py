@@ -44,9 +44,10 @@ def build_pretraining_dataloader(
     stride: int = 128,
     shuffle: bool = True,
     drop_last: bool = True,
+    num_workers: int = 0,
 ) -> DataLoader:
     tokenizer = Tokenizer()
     dataset = PretrainingDataset(text, tokenizer, max_length, stride)
     return DataLoader(
-        dataset, batch_size=batch_size, shuffle=shuffle, drop_last=drop_last
+        dataset, batch_size=batch_size, shuffle=shuffle, drop_last=drop_last, num_workers=num_workers
     )

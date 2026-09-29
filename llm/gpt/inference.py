@@ -1,7 +1,7 @@
 import torch
 
 
-def generate_text(model, idx, max_output_tokens, context_size):
+def generate_text(model, idx: torch.Tensor, max_output_tokens, context_size) -> torch.Tensor:
     for _ in range(max_output_tokens):
         idx_cond = idx[:, -context_size:]
         with torch.no_grad():
