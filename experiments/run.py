@@ -1,7 +1,7 @@
 import torch
 from torch import Tensor
 from llm.gpt.model import GPT
-from llm.gpt.inference import generate_text
+from llm.gpt.inference import generate_next_token
 from llm.gpt.tokenizer import Tokenizer
 
 
@@ -32,11 +32,11 @@ model = GPT(GPT_CONFIG_124M)
 model.eval()
 start_sequence = "Every effort moves you"
 
-sequence = generate_text(
+sequence = generate_next_token(
     model,
     idx=text_to_tokens(start_sequence, tokenizer),
     max_output_tokens=10,
-    context_size=GPT_CONFIG_124M["context_length"],
+    context_length=GPT_CONFIG_124M["context_length"],
 )
 
 print("Output:", sequence)

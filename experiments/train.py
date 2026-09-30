@@ -1,10 +1,28 @@
 import torch
-from llm.gpt.train import loss_dataset
+import matplotlib.pyplot as plt
+from matplotlib.ticker import MaxNLocator
+from llm.gpt.train import train
 from llm.gpt.data import build_pretraining_dataloader
 from llm.gpt.tokenizer import Tokenizer
 from llm.gpt.model import GPT
 from os import path
 
+def plot_loss(epochs_seen, tokens_seen, train_acc_loss, val_acc_loss):
+    fig, ax1 = plt.subplots(figsize=(5,3))
+    ax1.plot(epochs_seen, train_acc_loss, label="training loss")
+    ax1.plot(epochs_seen, val_acc_loss, label="validation loss")
+    ax1.set_xlabel("epochs")
+    ax1.set_ylabel("loss")
+    ax1.legend("upper right")
+    ax1.xaxis.set_major_locator(MaxNLocator(integer=True))
+
+    ax2 = ax1.twiny()
+    ax2.plot(tokens_seen, train_acc_loss, alpha=0)
+    ax2.set_xlabel("tokens seen")
+    fig.tight_layout()
+    plt.show()
+
+torch.manual_seed(123)
 DATASET = path.join(path.dirname(__file__), "../data/the-verdict.txt")
 
 with open(DATASET, "r", encoding="utf-8") as file:
@@ -51,11 +69,21 @@ val_loader = build_pretraining_dataloader(
 )
 
 model = GPT(GPT_CONFIG_124M)
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+device = torch.device("mps" if torch.mps.is_available() else "cpu")
 model.to(device)
 
-with torch.no_grad():
-    train_loss = loss_dataset(train_loader, model, device)
-    val_loss = loss_dataset(val_loader, model, device)
-print("Training loss:", train_loss)
-print("Validation loss:", val_loss)
+model.to(device)
+optimizer = torch.optim.AdamW(
+     model.parameters(),
+    lr=0.0004, weight_decay=0.1
+)
+num_epochs = 10
+train_losses, val_losses, tokens_seen = train(
+    model, train_loader, val_loader, optimizer, device,
+    num_epochs=num_epochs, eval_freq=5, eval_iter=5,
+    sequence="Every effort moves you", tokenizer=tokenizer
+)
+
+epochs_tensor = torch.linspace(0, num_epochs, len(train_losses))
+plot_loss(epochs_tensor, tokens_seen, train_losses, val_losses)
+

@@ -1,9 +1,26 @@
 import torch
+from torch import Tensor
+from llm.gpt.model import GPT
+from llm.gpt.tokenizer import Tokenizer
 
 
-def generate_text(model, idx: torch.Tensor, max_output_tokens, context_size) -> torch.Tensor:
+def text_to_tokens(text: str, tokenizer: Tokenizer) -> Tensor:
+    encoded = tokenizer.encode(text)
+    encoded_tensor = torch.tensor(encoded).unsqueeze(0)
+    return encoded_tensor
+
+
+def tokens_to_text(tokens: Tensor, tokenizer: Tokenizer) -> str:
+    flat = tokens.squeeze(dim=0)
+    decoded_text = tokenizer.decode(flat.tolist())
+    return decoded_text
+
+
+def generate_next_token(
+    model, idx: torch.Tensor, max_output_tokens, context_length
+) -> torch.Tensor:
     for _ in range(max_output_tokens):
-        idx_cond = idx[:, -context_size:]
+        idx_cond = idx[:, -context_length:]
         with torch.no_grad():
             logits = model(idx_cond)
 
