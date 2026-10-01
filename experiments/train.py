@@ -1,7 +1,7 @@
 import torch
 import matplotlib.pyplot as plt
 from matplotlib.ticker import MaxNLocator
-from llm.gpt.train import train
+from llm.gpt.train import train, save_checkpoint, load_checkpoint
 from llm.gpt.data import build_pretraining_dataloader
 from llm.gpt.tokenizer import Tokenizer
 from llm.gpt.model import GPT
@@ -24,6 +24,7 @@ def plot_loss(epochs_seen, tokens_seen, train_acc_loss, val_acc_loss):
 
 torch.manual_seed(123)
 DATASET = path.join(path.dirname(__file__), "../data/the-verdict.txt")
+CHECKPOINT_PATH = path.join(path.dirname(__file__), "../checkpoints/pretraining_checkpoint.pth")
 
 with open(DATASET, "r", encoding="utf-8") as file:
     text_data = file.read()
@@ -38,7 +39,6 @@ train_ratio = 0.90
 split_idx = int(train_ratio * len(text_data))
 train_data = text_data[:split_idx]
 val_data = text_data[split_idx:]
-
 GPT_CONFIG_124M = {
     "vocab_size": 50257,
     "context_length": 256,
@@ -71,18 +71,31 @@ val_loader = build_pretraining_dataloader(
 model = GPT(GPT_CONFIG_124M)
 device = torch.device("mps" if torch.mps.is_available() else "cpu")
 model.to(device)
-
-model.to(device)
 optimizer = torch.optim.AdamW(
      model.parameters(),
     lr=0.0004, weight_decay=0.1
 )
+
+start_epoch = 0
+if path.exists(CHECKPOINT_PATH):
+    ckpt = load_checkpoint(model, optimizer, CHECKPOINT_PATH, device)
+    start_epoch = ckpt.get("epoch", -1) + 1
+    print(f"Resumed from {CHECKPOINT_PATH} (epoch {ckpt.get('epoch')})")
+
 num_epochs = 10
 train_losses, val_losses, tokens_seen = train(
     model, train_loader, val_loader, optimizer, device,
     num_epochs=num_epochs, eval_freq=5, eval_iter=5,
     sequence="Every effort moves you", tokenizer=tokenizer
 )
+
+save_checkpoint(
+    model, optimizer,
+    epoch=start_epoch + num_epochs - 1,
+    tokens_seen=tokens_seen[-1] if len(tokens_seen) > 0 else 0,
+    path=CHECKPOINT_PATH,
+)
+print(f"Saved checkpoint to {CHECKPOINT_PATH}")
 
 epochs_tensor = torch.linspace(0, num_epochs, len(train_losses))
 plot_loss(epochs_tensor, tokens_seen, train_losses, val_losses)

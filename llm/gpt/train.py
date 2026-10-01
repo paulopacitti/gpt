@@ -60,16 +60,61 @@ def evaluate_model(
     model.train()
     return train_loss, val_loss
 
+
 def log_text_sample(model: GPT, tokenizer, device, sequence):
     model.eval()
     with torch.no_grad():
         context_length = model.pos_emb.weight.shape[0]
         encoded = text_to_tokens(sequence, tokenizer).to(device)
-        with torch.no_grad() :
-            token_ids = generate_next_token(model=model, idx=encoded, max_output_tokens=50, context_length=context_length)
+        with torch.no_grad():
+            token_ids = generate_next_token(
+                model=model,
+                sequence=encoded,
+                max_output_tokens=50,
+                context_length=context_length,
+            )
         decoded_text = tokens_to_text(token_ids, tokenizer)
         print(decoded_text.replace("\n", " "))
         model.train()
+
+
+def save_checkpoint(
+    model: GPT,
+    optimizer: torch.optim.Optimizer,
+    epoch: int,
+    tokens_seen: int,
+    path: str,
+) -> None:
+    """Persist model + optimizer state for resuming pretraining."""
+    torch.save(
+        {
+            "model_state_dict": model.state_dict(),
+            "optimizer_state_dict": optimizer.state_dict(),
+            "epoch": epoch,
+            "tokens_seen": tokens_seen,
+        },
+        path,
+    )
+
+
+def load_checkpoint(
+    model: GPT,
+    optimizer: torch.optim.Optimizer,
+    path: str,
+    device: torch.device,
+) -> dict:
+    """Restore model + optimizer state; leaves model in train mode.
+
+    Optimizer must be constructed first with the same hparams.
+    Returns the raw checkpoint dict (epoch, tokens_seen).
+    """
+    ckpt = torch.load(path, map_location=device)
+    assert "model_state_dict" in ckpt and "optimizer_state_dict" in ckpt
+    model.load_state_dict(ckpt["model_state_dict"])
+    optimizer.load_state_dict(ckpt["optimizer_state_dict"])
+    model.train()
+    return ckpt
+
 
 def train(
     model,
@@ -114,12 +159,11 @@ def train(
                 train_acc_loss.append(train_loss)
                 val_acc_loss.append(val_loss)
                 track_tokens_seen.append(tokens_seen)
-                print(f"Epoch {epoch + 1} (Step {global_step:06d}): "
+                print(
+                    f"Epoch {epoch + 1} (Step {global_step:06d}): "
                     f"Train loss: {train_loss:.3f} "
                     f"Validation loss: {val_loss:.3f}"
                 )
 
-    log_text_sample(model, tokenizer, device=device,sequence=sequence)
+    log_text_sample(model, tokenizer, device=device, sequence=sequence)
     return train_acc_loss, val_acc_loss, track_tokens_seen
-
-

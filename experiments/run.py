@@ -34,7 +34,7 @@ start_sequence = "Every effort moves you"
 
 sequence = generate_next_token(
     model,
-    idx=text_to_tokens(start_sequence, tokenizer),
+    sequence=text_to_tokens(start_sequence, tokenizer),
     max_output_tokens=10,
     context_length=GPT_CONFIG_124M["context_length"],
 )
