@@ -23,6 +23,12 @@ class SelfAttention(nn.Module):
 
 
 class CausalAttention(nn.Module):
+    """Apply scaled dot-product self-attention with a causal mask.
+
+    Each token can attend to itself and earlier tokens, but not to future
+    tokens. The input and output have shape ``[batch, tokens, features]``.
+    """
+
     mask: torch.Tensor
 
     def __init__(self, d_in, d_out, context_length, dropout, qkv_bias=False):
@@ -124,9 +130,9 @@ class FeedForward(nn.Module):
     def __init__(self, cfg):
         super().__init__()
         self.layers = nn.Sequential(
-            nn.Linear(cfg["emb_dim"], 4 * cfg["emb_dim"]),
+            nn.Linear(cfg["n_embd"], 4 * cfg["n_embd"]),
             nn.GELU(),
-            nn.Linear(4 * cfg["emb_dim"], cfg["emb_dim"]),
+            nn.Linear(4 * cfg["n_embd"], cfg["n_embd"]),
         )
 
     def forward(self, x):
@@ -134,9 +140,10 @@ class FeedForward(nn.Module):
 
 
 class LayerNorm(nn.Module):
+    eps: float = 1e-5
+
     def __init__(self, emb_dim):
         super().__init__()
-        self.eps = 1e-5
         self.scale = nn.Parameter(torch.ones(emb_dim))
         self.shift = nn.Parameter(torch.zeros(emb_dim))
 
@@ -148,20 +155,22 @@ class LayerNorm(nn.Module):
 
 
 class TransformerBlock(nn.Module):
+    """Apply causal self-attention and feed-forward layers with residuals."""
+
     def __init__(self, cfg):
         super().__init__()
         self.attn = MultiHeadAttention(
-            d_in=cfg["emb_dim"],
-            d_out=cfg["emb_dim"],
-            context_length=cfg["context_length"],
-            num_heads=cfg["n_heads"],
-            dropout=cfg["drop_rate"],
+            d_in=cfg["n_embd"],
+            d_out=cfg["n_embd"],
+            context_length=cfg["n_positions"],
+            num_heads=cfg["n_head"],
+            dropout=cfg["attn_pdrop"],
             qkv_bias=cfg["qkv_bias"],
         )
         self.ffn = FeedForward(cfg)
-        self.norm1 = LayerNorm(cfg["emb_dim"])
-        self.norm2 = LayerNorm(cfg["emb_dim"])
-        self.dropout = nn.Dropout(cfg["drop_rate"])
+        self.norm1 = LayerNorm(cfg["n_embd"])
+        self.norm2 = LayerNorm(cfg["n_embd"])
+        self.dropout = nn.Dropout(cfg["resid_pdrop"])
 
     def forward(self, x: Tensor):
         shortcut= x
@@ -180,20 +189,22 @@ class TransformerBlock(nn.Module):
 
 
 class GPT(nn.Module):
+    """GPT language model that maps token sequences to vocabulary logits."""
+
     context_length: int
     token_embedding_layer: nn.Embedding
     positional_embedding_layer: nn.Embedding
 
     def __init__(self, cfg):
         super().__init__()
-        self.tok_emb = nn.Embedding(cfg["vocab_size"], cfg["emb_dim"])
-        self.pos_emb = nn.Embedding(cfg["context_length"], cfg["emb_dim"])
-        self.drop_emb = nn.Dropout(cfg["drop_rate"])
+        self.tok_emb = nn.Embedding(cfg["vocab_size"], cfg["n_embd"])
+        self.pos_emb = nn.Embedding(cfg["n_positions"], cfg["n_embd"])
+        self.drop_emb = nn.Dropout(cfg["embd_pdrop"])
         self.transformer_blocks = nn.Sequential(
-            *[TransformerBlock(cfg) for _ in range(cfg["n_layers"])]
+            *[TransformerBlock(cfg) for _ in range(cfg["n_layer"])]
         )
-        self.final_norm = LayerNorm(cfg["emb_dim"])
-        self.out_head = nn.Linear(cfg["emb_dim"], cfg["vocab_size"], bias=False)
+        self.final_norm = LayerNorm(cfg["n_embd"])
+        self.out_head = nn.Linear(cfg["n_embd"], cfg["vocab_size"], bias=False)
 
     def forward(self, x) -> Tensor:
         batch_size, seq_len = x.shape

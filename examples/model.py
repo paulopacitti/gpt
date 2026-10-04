@@ -1,9 +1,9 @@
 import torch
-from llm.gpt.model import GPT
-from llm.gpt.tokenizer import Tokenizer
+from gpt.model import GPT
+from gpt.tokenizer import Tokenizer
 
 torch.manual_seed(1234)
-tokenizer = Tokenizer("gpt2")
+tokenizer = Tokenizer()
 
 batch = []
 txt1 = "Every effort moves you"
@@ -14,21 +14,25 @@ batch = torch.stack(batch, dim=0)
 
 GPT_CONFIG_124M = {
     "vocab_size": 50257,
-    "context_length": 1024,
-    "emb_dim": 768,
-    "n_heads": 12,
-    "n_layers": 12,
-    "drop_rate": 0.1,
+    "n_positions": 1024,
+    "n_embd": 768,
+    "n_head": 12,
+    "n_layer": 12,
+    "embd_pdrop": 0.1,
+    "attn_pdrop": 0.1,
+    "resid_pdrop": 0.1,
     "qkv_bias": False,
 }
 
 GPT_CONFIG_124M_MEDIUM = {
     "vocab_size": 50257,
-    "context_length": 1024,
-    "emb_dim": 1024,
-    "n_heads": 16,
-    "n_layers": 24,
-    "drop_rate": 0.1,
+    "n_positions": 1024,
+    "n_embd": 1024,
+    "n_head": 16,
+    "n_layer": 24,
+    "embd_pdrop": 0.1,
+    "attn_pdrop": 0.1,
+    "resid_pdrop": 0.1,
     "qkv_bias": False,
 }
 

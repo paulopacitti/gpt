@@ -1,22 +1,19 @@
 # AGENTS.md
 
-## Project Overview
-
-LLM implementations and experiments library. Based on "Build a Large Language Model (from scratch)" by Sebastian Raschka.
+GPT implementation in PyTorch. Based on "Build a Large Language Model (from scratch)" by Sebastian Raschka.
 
 ## Project Structure
 
 ```
-llm/                     # Library package
+gpt/                     # GPT model package
 ├── __init__.py
-└── gpt/                 # GPT-related modules
-    ├── model.py         # Neural network architectures
-    ├── data.py          # Dataset and dataloader utilities
-    └── tokenizer.py    # Tokenization utilities
+├── model.py             # GPT and educational attention implementations
+├── data.py              # Dataset and dataloader utilities
+└── tokenizer.py         # Tokenization utilities
 
-experiments/             # Experiment scripts
-├── main.py              # Example: run with `PYTHONPATH=. uv run python experiments/main.py`
-└── ...
+train.py                 # Training loop and entry point
+generate.py              # Text generation entry point
+examples/                # Standalone educational examples
 
 data/                    # Data files (outside library)
 ```
@@ -27,8 +24,14 @@ data/                    # Data files (outside library)
 # Install dependencies
 uv sync
 
-# Run experiment scripts (PYTHONPATH needed for subdirectories)
-PYTHONPATH=. uv run python experiments/main.py
+# Train or resume from the checkpoint in out/
+uv run python train.py
+
+# Generate text from the checkpoint in out/
+uv run python generate.py
+
+# Run an educational example
+PYTHONPATH=. uv run python examples/attention.py
 
 # Type checking (linter)
 uv run ty check
@@ -40,28 +43,13 @@ uv run python
 ## Code Style
 
 - Use assertions for internal invariants
-
-### Type Hints
-
 - Add type hints to function signatures
-- Return types are encouraged but optional for obvious returns
-
 ```python
-def encode(self, text: str) -> list[int]:
-    ...
-
-def forward(self, x: Tensor) -> Tensor:
-    ...
-```
-
-## Adding New Components
-
-1. New architectures → `llm/gpt/model.py` or new submodule
-2. New data processing → `llm/gpt/data.py` or new submodule
-3. New experiments → `experiments/` directory
+- Return types are encouraged but optional for obvious returns
+- Use relative imports within the package (`from .tokenizer import Tokenizer`)
 
 ## Notes
 
-- Use relative imports within the library (`from .tokenizer import Tokenizer`)
-- Data files reference from experiments using relative paths: `../data/filename`
+- Training configuration is saved with checkpoints for sampling
+- Scripts derive data and checkpoint paths from their own file locations
 - Tokenizer uses `tiktoken` with `gpt2` encoding by default; implement from scratch later

@@ -1,5 +1,5 @@
 import torch
-from llm.gpt.model import LayerNorm, MultiHeadAttention, GPT
+from gpt.model import LayerNorm, MultiHeadAttention, GPT
 
 
 def test_layernorm_stats():
@@ -53,11 +53,13 @@ def test_mha_is_causal():
 def test_gpt_logits_shape():
     cfg = {
         "vocab_size": 20,
-        "emb_dim": 12,
-        "context_length": 8,
-        "n_heads": 3,
-        "n_layers": 2,
-        "drop_rate": 0.0,
+        "n_embd": 12,
+        "n_positions": 8,
+        "n_head": 3,
+        "n_layer": 2,
+        "embd_pdrop": 0.0,
+        "attn_pdrop": 0.0,
+        "resid_pdrop": 0.0,
         "qkv_bias": False,
     }
     m = GPT(cfg)

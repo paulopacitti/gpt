@@ -1,3 +1,5 @@
+"""Dataset and dataloader utilities for next-token pretraining."""
+
 import torch
 from torch import Tensor
 from torch.utils.data import Dataset, DataLoader
@@ -5,6 +7,12 @@ from .tokenizer import Tokenizer
 
 
 class PretrainingDataset(Dataset[tuple[Tensor, Tensor]]):
+    """Create fixed-length input and target windows from text.
+
+    Each target window is shifted one token forward from its input window.
+    `stride` sets how far the start moves between windows.
+    """
+
     def __init__(
         self,
         text: str,
@@ -31,12 +39,6 @@ class PretrainingDataset(Dataset[tuple[Tensor, Tensor]]):
         return self.input_ids[index], self.target_ids[index]
 
 
-def load_pretraining_dataset(path: str) -> str:
-    with open(path, "r", encoding="utf-8") as file:
-        raw_text = file.read()
-    return raw_text
-
-
 def build_pretraining_dataloader(
     text: str,
     batch_size: int = 4,
@@ -46,6 +48,11 @@ def build_pretraining_dataloader(
     drop_last: bool = True,
     num_workers: int = 0,
 ) -> DataLoader:
+    """Build batches of next-token examples from raw text.
+
+    Creates a default GPT-2 tokenizer and uses the given settings to batch
+    the dataset windows.
+    """
     tokenizer = Tokenizer()
     dataset = PretrainingDataset(text, tokenizer, max_length, stride)
     return DataLoader(

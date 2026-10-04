@@ -1,5 +1,5 @@
 import torch
-from llm.gpt.model import CausalAttention, MultiHeadAttention
+from gpt.model import CausalAttention, MultiHeadAttention
 
 print("> CausalAttention")
 torch.manual_seed(1234)
