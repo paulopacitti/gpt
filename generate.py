@@ -1,9 +1,11 @@
+import argparse
 from pathlib import Path
 import torch
 from torch import Tensor
 
 from gpt.model import GPT
 from gpt.tokenizer import Tokenizer
+from pretrained import load_gpt2_124m
 
 ROOT = Path(__file__).resolve().parent
 CHECKPOINT_PATH = ROOT.joinpath("out", "pretraining_checkpoint.pth")
@@ -58,22 +60,36 @@ def generate_next_token(
 
 
 def main() -> None:
-    torch.manual_seed(123)
+    parser = argparse.ArgumentParser(description="Generate text with GPT-2.")
+    parser.add_argument(
+        "--pretrained",
+        action="store_true",
+        help="Download and use the public GPT-2 124M checkpoint.",
+    )
+    args = parser.parse_args()
+
     device = torch.device("mps" if torch.mps.is_available() else "cpu")
 
     tokenizer = Tokenizer()
-    checkpoint = torch.load(CHECKPOINT_PATH, map_location=device)
-    config = checkpoint["config"]
-    model = GPT(config).to(device)
-    model.load_state_dict(checkpoint["model_state_dict"])
-    model.eval()
+    if args.pretrained:
+        model = load_gpt2_124m(device)
+        context_length = model.pos_emb.weight.shape[0]
+    else:
+        checkpoint = torch.load(CHECKPOINT_PATH, map_location=device)
+        config = checkpoint["config"]
+        model = GPT(config).to(device)
+        model.load_state_dict(checkpoint["model_state_dict"])
+        model.eval()
+        context_length = config["n_positions"]
 
     start_sequence = "Every effort moves you"
     sequence = generate_next_token(
         model,
         sequence=text_to_tokens(start_sequence, tokenizer).to(device),
         max_output_tokens=50,
-        context_length=config["n_positions"],
+        context_length=context_length,
+        temperature=1.5,
+        top_k=50
     )
 
     print(tokens_to_text(sequence.cpu(), tokenizer))

@@ -13,6 +13,7 @@ gpt/                     # GPT model package
 
 train.py                 # Training loop and entry point
 generate.py              # Text generation entry point
+pretrained.py            # Public GPT-2 weight download and loading
 examples/                # Standalone educational examples
 
 data/                    # Data files (outside library)
@@ -29,6 +30,9 @@ uv run python train.py
 
 # Generate text from the checkpoint in out/
 uv run python generate.py
+
+# Download and generate with the public GPT-2 124M checkpoint
+uv run python generate.py --pretrained
 
 # Run an educational example
 PYTHONPATH=. uv run python examples/attention.py

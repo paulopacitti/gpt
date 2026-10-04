@@ -16,6 +16,9 @@ uv run python train.py
 # Generate text from the checkpoint
 uv run python generate.py
 
+# Download and generate with the public GPT-2 124M checkpoint
+uv run python generate.py --pretrained
+
 # Run the attention and GPT examples
 PYTHONPATH=. uv run python examples/attention.py
 PYTHONPATH=. uv run python examples/gpt.py
